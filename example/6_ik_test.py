@@ -21,6 +21,7 @@ from reBotArm_control_py.kinematics import (
     compute_ik,
     get_joint_names,
 )
+from reBotArm_control_py.kinematics.inverse_kinematics import IKParams
 
 
 # ----------------------------------------------------------------------
@@ -55,10 +56,9 @@ def print_result(result, target_pos, target_rot, joint_names) -> None:
         euler_in = np.degrees(pin.rpy.matrixToRpy(target_rot))
         print(f"  目标末端姿态   : [{euler_in[0]:+.2f}, {euler_in[1]:+.2f}, {euler_in[2]:+.2f}] deg")
     print()
-    print(f"  收敛状态  : {'是' if result.converged else '否'}")
+    print(f"  收敛状态  : {'是' if result.success else '否'}")
     print(f"  迭代次数 : {result.iterations}")
-    print(f"  位置误差  : {result.residual_trans:.2e} m")
-    print(f"  姿态误差  : {result.residual_rot:.2e} rad")
+    print(f"  位置误差  : {result.error:.2e} m")
     print()
     print(f"  关节角度 (度):")
     for name, deg, rad in zip(joint_names, np.degrees(result.q), result.q):
@@ -103,13 +103,16 @@ def main() -> None:
     target_pos, target_rot = parse_pose_input(line)
 
     q_init = np.zeros(model.nq)
+    
+    # 创建IK参数对象来传递max_iter和damping
+    ik_params = IKParams(max_iter=2000, damping=0.01)
+    
+    # 计算IK
     result = compute_ik(
-        model=model,
         q_init=q_init,
-        target_position=target_pos,
-        target_rotation=target_rot,
-        max_iter=2000,
-        damping=0.01,
+        target_pos=target_pos,
+        target_rot=target_rot,
+        params=ik_params,
     )
 
     print_result(result, target_pos, target_rot, joint_names)
