@@ -182,17 +182,14 @@ uv run python example/plot_stress_data.py --csv stress_test_data.csv --output cu
 
 ## CAN 总线配置示例
 
-RobStride 默认 1 Mbps：
+使用PCAN-USB的话需要配置can0：
 
 ```bash
-sudo ip link set can0 down
-sudo ip link set can0 up type can bitrate 1000000 txqueuelen 1000
-```
+sudo ip link set can0 down 2>/dev/null
+sudo ip link set can0 type can bitrate 1000000 restart-ms 100
+sudo ip link set can0 up
 
-若仍出现 `socketcan write failed: No buffer space available`，可尝试增大发送队列：
-
-```bash
-sudo ip link set can0 txqueuelen 1000
+motorbridge-gateway -- --bind 127.0.0.1:9002 --transport socketcan --channel can0   #可选（可以在web上连接机械臂测试连接）
 ```
 
 ## 注意事项
