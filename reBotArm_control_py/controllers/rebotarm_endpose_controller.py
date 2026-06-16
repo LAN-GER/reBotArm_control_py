@@ -131,16 +131,23 @@ class RebotArmEndPose:
                 )
             else:
                 self._arm_group.mode_pos_vel()
+            time.sleep(0.3)
             self._arm_group.enable()
         if self._has_gripper:
             self._gripper_group.mode_mit()
+            time.sleep(0.1)
             self._gripper_group.enable()
+        time.sleep(0.3)
         self.rebotarm.start_control_loop(self._loop_cb)
         self._running = True
 
     def end(self) -> None:
         if not self._running:
             return
+        # 先停止任何正在运行的轨迹发送线程，避免和 safe_home 竞争 _q_target
+        self._stop_send.set()
+        if self._send_thread is not None:
+            self._send_thread.join(timeout=5.0)
         self.safe_home()
         self.rebotarm.disconnect()
         self._running = False
@@ -260,12 +267,32 @@ class RebotArmEndPose:
         pitch: float = 0.0,
         yaw: float = 0.0,
         duration: float = 2.0,
+        joint_offsets: dict[int, float] | None = None,
     ) -> bool:
+        """移动到目标位姿，支持关节空间渐变偏移。
+
+        参数:
+            joint_offsets: 可选，{joint_index: total_offset_rad}。
+                           在轨迹执行过程中，该关节会从 0 平滑渐变到 total_offset_rad。
+                           例如 {3: np.radians(-45)} 表示第4关节向下偏移45度。
+        """
         if not self._running:
             return False
 
-        q_start, _, _ = self.rebotarm.get_state()
-        q_start = pad_q_for_model(self._model, q_start, self._n)
+        # 使用 _q_target 作为轨迹起点，避免 get_state() poll 到旧帧导致偏差
+        q_start = pad_q_for_model(self._model, self._q_target.copy(), self._n)
+
+        # 交叉验证：如果反馈位置和 _q_target 差距过大，报警但不切换（避免旧帧误导）
+        try:
+            q_fb = self.rebotarm.get_state()[0][:self._n]
+            max_diff = float(np.max(np.abs(q_fb - self._q_target)))
+            if max_diff > 0.15:
+                print(
+                    f"[move_to_traj] 警告: 反馈位置与目标差距 {max_diff:.3f} rad "
+                    f"(约 {np.degrees(max_diff):.1f}°)，电机可能未完全到位"
+                )
+        except Exception:
+            pass
 
         T_target = pos_rot_to_se3(
             np.array([x, y, z]), roll=roll, pitch=pitch, yaw=yaw,
@@ -304,6 +331,15 @@ class RebotArmEndPose:
             return False
 
         pts = [pt.q[: self._n].copy() for pt in joint_traj]
+
+        # 关节渐变偏移：从 0 线性渐变到 total_offset
+        if joint_offsets:
+            n = len(pts)
+            for i in range(n):
+                progress = i / (n - 1) if n > 1 else 1.0
+                for idx, total_offset in joint_offsets.items():
+                    if 0 <= idx < self._n:
+                        pts[i][idx] += total_offset * progress
 
         self._stop_send.set()
         if self._send_thread is not None:
@@ -348,6 +384,21 @@ class RebotArmEndPose:
     def _send_loop(self, duration: float) -> None:
         n = len(self._traj)
         interval = duration / n if n > 0 else self._dt
+
+        # 平滑过渡：从当前 _q_target 渐变到轨迹起点，避免跳变
+        q_blend_start = self._q_target.copy()
+        q_blend_end = self._traj[0] if n > 0 else q_blend_start
+        max_diff = float(np.max(np.abs(q_blend_end - q_blend_start)))
+        if max_diff > 0.02:  # 差距 > 0.02 rad ≈ 1.1°
+            n_blend = min(15, max(3, int(max_diff / 0.01)))
+            blend_dt = 0.02
+            for i in range(n_blend):
+                if self._stop_send.is_set():
+                    return
+                alpha = (i + 1) / n_blend
+                self._q_target[:] = q_blend_start + alpha * (q_blend_end - q_blend_start)
+                time.sleep(blend_dt)
+
         for i in range(n):
             if self._stop_send.is_set():
                 return

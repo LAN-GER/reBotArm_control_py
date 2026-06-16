@@ -1,16 +1,73 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 
-# # Python virtual environment
-# .venv/
+# C extensions
+*.so
 
-# # VS Code
-# .vscode/
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# # Python version
-# .python-version
+# PyInstaller
+*.manifest
+*.spec
 
-# # UV lock file
-# uv.lock
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
 
-# # pyproject.toml (local overrides)
-# pyproject.toml
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
 
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python version management
+.python-version
+
+# Stress test runtime artifacts
+example/stress_test_data.csv
+example/temperature_curve.png

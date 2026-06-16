@@ -53,7 +53,7 @@ def gravity_compensation_controller(r: RebotArm, dt: float) -> None:
     q = r.arm.get_positions()
     tau_g = compute_generalized_gravity(q=q)
     tau_g[1] *= 1.5
-    tau_g[2] *= 1.5  # joint3 额外补偿
+    tau_g[2] *= 1.6  # joint3 额外补偿
 
     r.arm.send_mit(
         pos=q,

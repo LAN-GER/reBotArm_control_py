@@ -234,10 +234,16 @@ class JointGroup:
         for jc in self._jcfgs:
             by_vendor.setdefault(jc.vendor, []).append(jc.name)
         for vendor in by_vendor:
-            try:
-                self._cm[vendor].enable_all()
-            except CallError as e:
-                print(f"[{self.name}/enable] {e}")
+            for attempt in range(5):
+                try:
+                    self._cm[vendor].enable_all()
+                    break
+                except CallError as e:
+                    if "No buffer space available" in str(e) and attempt < 4:
+                        time.sleep(0.05 * (attempt + 1))
+                        continue
+                    print(f"[{self.name}/enable] {e}")
+                    break
             time.sleep(0.05)
 
     def disable(self) -> None:
@@ -285,11 +291,17 @@ class JointGroup:
             self._mit_kd = np.asarray(kd, dtype=np.float64).reshape(-1)
         ok = True
         for jc in self._jcfgs:
-            try:
-                self._mm[jc.name].ensure_mode(Mode.MIT, 1000)
-            except CallError as e:
-                print(f"[{self.name}/mode_mit/{jc.name}] {e}")
-                ok = False
+            for attempt in range(5):
+                try:
+                    self._mm[jc.name].ensure_mode(Mode.MIT, 1000)
+                    break
+                except CallError as e:
+                    if "No buffer space available" in str(e) and attempt < 4:
+                        time.sleep(0.05 * (attempt + 1))
+                        continue
+                    print(f"[{self.name}/mode_mit/{jc.name}] {e}")
+                    ok = False
+                    break
             time.sleep(0.05)
         time.sleep(0.2)
         return ok
@@ -304,11 +316,17 @@ class JointGroup:
         ok = True
         for jc in self._jcfgs:
             self._write_pv_params(jc)
-            try:
-                self._mm[jc.name].ensure_mode(Mode.POS_VEL, 1000)
-            except CallError as e:
-                print(f"[{self.name}/mode_pos_vel/{jc.name}] {e}")
-                ok = False
+            for attempt in range(5):
+                try:
+                    self._mm[jc.name].ensure_mode(Mode.POS_VEL, 1000)
+                    break
+                except CallError as e:
+                    if "No buffer space available" in str(e) and attempt < 4:
+                        time.sleep(0.05 * (attempt + 1))
+                        continue
+                    print(f"[{self.name}/mode_pos_vel/{jc.name}] {e}")
+                    ok = False
+                    break
             time.sleep(0.05)
         time.sleep(0.2)
         return ok
@@ -317,11 +335,17 @@ class JointGroup:
         self._mode = "vel"
         ok = True
         for jc in self._jcfgs:
-            try:
-                self._mm[jc.name].ensure_mode(Mode.VEL, 1000)
-            except CallError as e:
-                print(f"[{self.name}/mode_vel/{jc.name}] {e}")
-                ok = False
+            for attempt in range(5):
+                try:
+                    self._mm[jc.name].ensure_mode(Mode.VEL, 1000)
+                    break
+                except CallError as e:
+                    if "No buffer space available" in str(e) and attempt < 4:
+                        time.sleep(0.05 * (attempt + 1))
+                        continue
+                    print(f"[{self.name}/mode_vel/{jc.name}] {e}")
+                    ok = False
+                    break
             time.sleep(0.05)
         time.sleep(0.2)
         return ok
